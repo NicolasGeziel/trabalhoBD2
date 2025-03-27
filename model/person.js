@@ -9,7 +9,7 @@ const sequelize = new Sequelize(DATABASE, MYSQL_LOGIN, MYSQL_PASSWORD, {
 });
 
 export const Person = sequelize.define("Person", {
-    index: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    index: { type: DataTypes.INTEGER, autoIncrement: true },
     user_id: { type: DataTypes.STRING, primaryKey: true },
     first_name: { type: DataTypes.STRING, allowNull: false },
     last_name: { type: DataTypes.STRING, allowNull: false },
