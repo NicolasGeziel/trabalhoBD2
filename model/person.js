@@ -4,7 +4,7 @@ const path = require('path');
 
 const MYSQL_IP = "localhost";
 const MYSQL_LOGIN = "root";
-const MYSQL_PASSWORD = "root";
+const MYSQL_PASSWORD = "";
 const DATABASE = "m1_1";
 
 const sequelize = new Sequelize(DATABASE, MYSQL_LOGIN, MYSQL_PASSWORD, {
@@ -30,11 +30,21 @@ async function run() {
     const filePath = path.join(__dirname, 'people-100000.csv');
     const fileContent = fs.readFileSync(filePath, 'utf8');
     
-    const lines = fileContent.split("\n").slice(1); // Remover cabeçalho
-    const people = lines.map(line => {
-      const columns = line.split(",");
-      return {
-        index: columns[0],
+    const lines = fileContent.split("\n").slice(1, 100001); // Remover cabeçalho
+
+    await sequelize.sync();
+
+    lines.map(async line => {
+      const columns = line.replace(/"/g, "").split(",");
+
+      let job_title = columns[8];
+
+      if (columns[9] !== undefined) {
+        job_title += "," + columns[9];
+      }
+
+      const person = {
+        index: Number(columns[0]),
         user_id: columns[1],
         first_name: columns[2],
         last_name: columns[3],
@@ -42,13 +52,11 @@ async function run() {
         email: columns[5],
         phone: columns[6],
         date_of_birth: columns[7],
-        job_title: columns[8]
+        job_title
       };
-    });
 
-    await sequelize.sync();
-    await Person.bulkCreate(people, { ignoreDuplicates: true });
-    console.log("Dados inseridos no MySQL com sucesso!");
+      await Person.create(person, { ignoreDuplicates: true });
+    });
   } catch (error) {
     console.error("Erro ao inserir dados:", error);
   }
