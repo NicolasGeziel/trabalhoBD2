@@ -12,6 +12,7 @@ const sequelize = new Sequelize(DATABASE, MYSQL_LOGIN, MYSQL_PASSWORD, {
   host: MYSQL_IP,
   dialect: "mysql",
   port: 3306,
+  logging: false
 });
 
 const Person = sequelize.define("Person", {
@@ -20,13 +21,13 @@ const Person = sequelize.define("Person", {
   first_name: { type: DataTypes.STRING, allowNull: false },
   last_name: { type: DataTypes.STRING, allowNull: false },
   sex: { type: DataTypes.ENUM("Male", "Female"), allowNull: false },
-  email: { type: DataTypes.STRING, allowNull: false, unique: true },
+  email: { type: DataTypes.STRING, allowNull: false },
   phone: { type: DataTypes.STRING, allowNull: false },
   date_of_birth: { type: DataTypes.DATEONLY, allowNull: false },
   job_title: { type: DataTypes.STRING, allowNull: false }
 }, { tableName: "person", timestamps: false });
 
-async function run() {
+async function populateTable() {
   try {
     const filePath = path.join(__dirname, 'people-100000.csv');
     const fileContent = fs.readFileSync(filePath, 'utf8');
@@ -35,13 +36,18 @@ async function run() {
 
     await sequelize.sync();
 
-    lines.map(async line => {
+    const batchSize = 5000;
+    let batch = [];
+
+    for (const line of lines) {
       const columns = line.replace(/"/g, "").split(",");
 
-      let job_title = columns[8];
+      let job_title;
 
       if (columns[9] !== undefined) {
-        job_title += "," + columns[9];
+        job_title = columns[8] + "," + columns[9].replace(/\r/g, "");
+      } else {
+        job_title = columns[8].replace(/\r/g, "");
       }
 
       const person = {
@@ -56,8 +62,18 @@ async function run() {
         job_title
       };
 
-      await Person.create(person, { ignoreDuplicates: true });
-    });
+      batch.push(person);
+
+      if (batch.length >= batchSize) {
+        console.log(batch.length);
+        await Person.bulkCreate(batch, { ignoreDuplicates: true });
+        batch = [];
+      }
+    }
+
+    if (batch.length > 0) {
+      await Person.bulkCreate(batch, { ignoreDuplicates: true });
+    }
   } catch (error) {
     console.error("Erro ao inserir dados:", error);
   }
@@ -67,8 +83,8 @@ async function listPeople() {
   return await Person.findAll();
 }
 
-async function filterPeopleByName() {
-  await Person.findAll({
+async function filterPeopleByName(characters) {
+  return await Person.findAll({
     where: {
       first_name: {
         [Sequelize.Op.like]: `%${characters}%`
@@ -82,23 +98,40 @@ const rl = readline.createInterface({
   output: process.stdout
 });
 
-rl.question('Selecione a operação que deseja realizar:' +
-  '\n1 - Exibir a lista de pessoas' +
-  '\n2 - Filtrar a lista de pessoas por nome' +
-  '\n> ', operation => {
-  switch (operation) {
-    case '1':
-      listPeople();
-      break;
-    case '2':
-      rl.question('Digite alguns caracteres para começar a filtragem: ', characters => {
-        filterPeopleByName(characters);
-        rl.close();
-      });
-      break;
-    default:
-      console.log('Operação incorreta!');
-  }
-});
+async function main() {
+  await populateTable();
 
-run();
+  console.log("Dados inseridos com sucesso!");
+
+  rl.question('Selecione a operação que deseja realizar:' +
+    '\n1 - Exibir a lista de pessoas' +
+    '\n2 - Filtrar a lista de pessoas por nome' +
+    '\n> ', async(operation) => {
+      switch (operation) {
+        case '1':
+          const people = await listPeople();
+
+          people.length > 0 ? console.log(JSON.stringify(people, null, 2)) : console.log("Nenhuma pessoa encontrada.");
+          
+          rl.close();
+          break;
+      case '2':
+          rl.question('Digite alguns caracteres para começar a filtragem: ', async characters => {
+          const people = await filterPeopleByName(characters);
+
+          people.length > 0 ? console.log(JSON.stringify(people, null, 2)) : console.log("Nenhuma pessoa encontrada.");
+
+          rl.close();
+        });
+
+        break;
+      default:
+        console.log('Operação incorreta!');
+
+        rl.close();
+    }
+  });
+}
+
+main();
+
