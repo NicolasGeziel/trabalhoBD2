@@ -1,3 +1,4 @@
+const readline = require('readline');
 const { Sequelize, DataTypes } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
@@ -61,5 +62,43 @@ async function run() {
     console.error("Erro ao inserir dados:", error);
   }
 }
+
+async function listPeople() {
+  return await Person.findAll();
+}
+
+async function filterPeopleByName() {
+  await Person.findAll({
+    where: {
+      first_name: {
+        [Sequelize.Op.like]: `%${characters}%`
+      }
+    }
+  })
+}
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+rl.question('Selecione a operação que deseja realizar:' +
+  '\n1 - Exibir a lista de pessoas' +
+  '\n2 - Filtrar a lista de pessoas por nome' +
+  '\n> ', operation => {
+  switch (operation) {
+    case '1':
+      listPeople();
+      break;
+    case '2':
+      rl.question('Digite alguns caracteres para começar a filtragem: ', characters => {
+        filterPeopleByName(characters);
+        rl.close();
+      });
+      break;
+    default:
+      console.log('Operação incorreta!');
+  }
+});
 
 run();
