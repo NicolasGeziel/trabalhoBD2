@@ -153,6 +153,7 @@ const insertData = async () => {
       password: password,
       last_update: new Date(),
     });
+    console.log("Novo funcionário criado:", newStaff.dataValues);
 
     // Inserir uma nova loja relacionada ao endereço
     const managerStaffId = await prompt("Digite o ID do gerente: ");
@@ -169,7 +170,32 @@ const insertData = async () => {
     console.error("Erro ao inserir dados:", error);
   }
 };
+// Função do menu
+const showMenu = async () => {
+  try {
+    while (true) {
+      console.log("\n=== MENU ===");
+      console.log("1. Listar Dados");
+      console.log("2. Inserir Dados");
+      console.log("3. Sair");
+
+      const choice = await prompt("Escolha uma opção: ");
+
+      if (choice === "1") {
+        await testConnection();
+      } else if (choice === "2") {
+        await insertData();
+      } else if (choice === "3") {
+        console.log("Saindo...");
+        break;
+      } else {
+        console.log("Opção inválida. Tente novamente.");
+      }
+    }
+  } catch (error) {
+    console.error("Erro no menu:", error);
+  }
+};
 // Chamar a função de inserção e depois o teste de conexão
-testConnection().then(() => {
-  insertData()
-});
+
+showMenu();
